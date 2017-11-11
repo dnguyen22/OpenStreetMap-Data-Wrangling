@@ -90,23 +90,33 @@ CREATED = ["version", "changeset", "timestamp", "user", "uid"]
 
 
 def shape_element(element):
-    node = {}
-    node['created'] = {}
-    node['pos'] = [None, None]
+    node = dict()
+
     if element.tag == "node" or element.tag == "way":
         if element.tag == "node":
             node['type'] = 'node'
         else:
             node['type'] = 'way'
+            # Add node references from ways
+            for nd in element.iter("nd"):
+                if 'node_refs' not in node:
+                        node['node_refs'] = []
+                node['node_refs'].append(nd.attrib['ref'])
 
         for attrib in element.attrib:
-            if attrib == 'lat':
-                node['pos'][0] = float(element.attrib[attrib])
-            elif attrib == 'lon':
-                node['pos'][1] = float(element.attrib[attrib])
+            if attrib == 'lat' or attrib == 'lon':
+                if 'pos' not in node:
+                    node['pos'] = [None, None]
+
+                if attrib == 'lat':
+                    node['pos'][0] = float(element.attrib[attrib])
+                else:
+                    node['pos'][1] = float(element.attrib[attrib])
             elif attrib not in CREATED:
                 node[attrib] = element.attrib[attrib]
             else:
+                if 'created' not in node:
+                    node['created'] = {}
                 node['created'][attrib] = element.attrib[attrib]
 
         for tag in element.iter("tag"):
@@ -120,6 +130,11 @@ def shape_element(element):
                     key = k.split(':')
                     if len(key) == 2:
                         node['address'][key[1]] = tag.attrib['v']
+                else:
+                    # ignore data with more than one ':' and that are not 'addr:'
+                    key = k.split(':')
+                    if len(key) == 1:
+                        node[k] = tag.attrib['v']
 
         return node
     else:
